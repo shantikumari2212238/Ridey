@@ -1,138 +1,124 @@
-// Import React and the useState hook to manage local component state
-import React, { useState } from 'react';
-
-// Import React Native components and APIs used in this screen
+// src/screens/StudentLogin.js
+import React, { useState } from "react";
 import {
-  View,                // Basic container element
-  Text,                // For displaying text
-  TextInput,           // For input fields
-  TouchableOpacity,    // Pressable button-like element
-  Image,               // For showing the app logo
-  StyleSheet,          // For defining component styles
-  KeyboardAvoidingView,// Adjusts UI when keyboard opens (iOS padding)
-  Platform,            // To detect platform (iOS/Android)
-  ScrollView,          // Allows content to scroll when needed
-  Alert,               // Shows popup messages to the user
-  ActivityIndicator,   // Loading spinner while waiting for async ops
-} from 'react-native';
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 
-// Functional component for the Student Login screen; receives navigation prop
 const StudentLogin = ({ navigation }) => {
-  // Local state: studentId input value
-  const [studentId, setStudentId] = useState('');
-  // Local state: password input value
-  const [password, setPassword] = useState('');
-  // Local state: loading indicator while sending login request
+  const [studentId, setStudentId] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Backend endpoint for student login (hosted on Render)
-  const BACKEND_URL = 'https://rydy-backend.onrender.com/api/students/login';
+  // Backend endpoint for student login
+  const BACKEND_URL = "https://rydy-backend.onrender.com/api/students/login";
 
-  // Handler called when user presses the Login button
   const handleLogin = async () => {
-    // Basic front-end validation: ensure both fields are filled
     if (!studentId.trim() || !password.trim()) {
-      Alert.alert('Validation', 'Please fill in all fields.');
-      return; // stop if validation fails
+      Alert.alert("Validation", "Please fill in all fields.");
+      return;
     }
 
-    // Show loading spinner
     setLoading(true);
 
     try {
-      // Send POST request with JSON body containing universityId and password
       const response = await fetch(BACKEND_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           universityId: studentId, // backend expects `universityId`
-          password,                // password from state
+          password,
         }),
       });
 
-      // Parse response body as JSON
-      const data = await response.json();
-      // Hide loading spinner regardless of success/failure
+      // Try to parse JSON safely
+      let data = {};
+      try {
+        data = await response.json();
+      } catch (parseErr) {
+        console.error("Failed to parse JSON response:", parseErr);
+      }
+
       setLoading(false);
 
-      // If response status is not OK (200–299), show error message
       if (!response.ok) {
-        Alert.alert('Login Failed', data.message || 'Invalid credentials');
+        Alert.alert("Login Failed", data.message || "Invalid credentials");
         return;
       }
 
-      // Successful login: show welcome message with student name
-      Alert.alert('Welcome', `Hello ${data.student.name}! 🎉`);
-      // Navigate to StudentHome and replace current screen (prevents back to login)
-      navigation.replace('StudentHome');
+      // Success: data.student should contain id and name
+      const studentName = data?.student?.name || "Student";
+      const studentDbId = data?.student?.id || data?.student?._id; // tolerate either
+
+      Alert.alert("Welcome", `Hello ${studentName}! 🎉`);
+
+      // IMPORTANT: pass the DB student id into StudentHome so profile and other screens can fetch the profile
+      navigation.replace('StudentHome', { studentId: data.student.id });
+
     } catch (error) {
-      // Network or unexpected error handling
-      setLoading(false); // make sure spinner is hidden
-      console.error('Login error:', error); // print error to debug console
+      setLoading(false);
+      console.error("Login error:", error);
       Alert.alert(
-        'Network Error',
-        'Unable to reach the server. Please try again later.'
+        "Network Error",
+        "Unable to reach the server. Please try again later."
       );
     }
   };
 
-  // Render UI
   return (
-    // KeyboardAvoidingView moves content up on iOS when keyboard opens
     <KeyboardAvoidingView
       style={styles.wrapper}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined} // only apply padding on iOS
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      {/* ScrollView allows tapping outside inputs to persist taps and scroll if needed */}
       <ScrollView
         contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled" // prevents keyboard from blocking tap events
+        keyboardShouldPersistTaps="handled"
       >
-        {/* App logo image (local asset) */}
         <Image
-          source={require('../../assets/rydy_logo.png')}
+          source={require("../../assets/rydy_logo.png")}
           style={styles.logo}
-          resizeMode="contain" // preserve aspect ratio
+          resizeMode="contain"
         />
 
-        {/* Screen title and subtitle */}
         <Text style={styles.title}>Student Login</Text>
         <Text style={styles.subtitle}>Sign in with your University ID</Text>
 
-        {/* Form container */}
         <View style={styles.form}>
-          {/* University ID label */}
           <Text style={styles.label}>University ID</Text>
-          {/* University ID input field */}
           <TextInput
-            value={studentId}             // value from state
-            onChangeText={setStudentId}   // update state on change
+            value={studentId}
+            onChangeText={setStudentId}
             placeholder="e.g. 2021-ABC-123"
             placeholderTextColor="#a68bc6"
             style={styles.input}
-            autoCapitalize="none"        // do not auto-capitalize ID
+            autoCapitalize="none"
           />
 
-          {/* Password label */}
           <Text style={[styles.label, { marginTop: 16 }]}>Password</Text>
-          {/* Password input field */}
           <TextInput
-            value={password}              // value from state
-            onChangeText={setPassword}    // update state on change
+            value={password}
+            onChangeText={setPassword}
             placeholder="Enter your password"
             placeholderTextColor="#a68bc6"
             style={styles.input}
-            secureTextEntry                // hide typed characters
-            autoCapitalize="none"          // no auto-capitalization for passwords
+            secureTextEntry
+            autoCapitalize="none"
           />
 
-          {/* Login button */}
           <TouchableOpacity
             style={styles.loginButton}
-            onPress={handleLogin}         // call login handler when pressed
-            disabled={loading}            // disable button while loading
+            onPress={handleLogin}
+            disabled={loading}
           >
-            {/* Show spinner if loading, otherwise show "Login" text */}
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
@@ -140,11 +126,9 @@ const StudentLogin = ({ navigation }) => {
             )}
           </TouchableOpacity>
 
-          {/* Row for signup prompt */}
           <View style={styles.signupRow}>
             <Text style={styles.signupText}>Don't have an account?</Text>
-            {/* Navigate to StudentSignup when user taps Sign Up */}
-            <TouchableOpacity onPress={() => navigation.navigate('StudentSignup')}>
+            <TouchableOpacity onPress={() => navigation.navigate("StudentSignup")}>
               <Text style={styles.signupLink}> Sign Up</Text>
             </TouchableOpacity>
           </View>
@@ -154,57 +138,55 @@ const StudentLogin = ({ navigation }) => {
   );
 };
 
-// Export component as default so other files can import it
 export default StudentLogin;
 
-// ---------- Stylesheet: visual styling for the components ----------
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: '#f7f0ff' }, // full-screen background
+  wrapper: { flex: 1, backgroundColor: "#f7f0ff" },
   container: {
-    alignItems: 'center',        // center items horizontally
-    paddingHorizontal: 24,       // side padding
-    paddingTop: 40,              // top padding
-    paddingBottom: 40,           // bottom padding
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 40,
   },
-  logo: { width: 180, height: 180, marginTop: 8, marginBottom: 8 }, // logo size & spacing
-  title: { color: '#6A1B9A', fontSize: 28, fontWeight: '800', marginTop: 6 }, // main title style
+  logo: { width: 180, height: 180, marginTop: 8, marginBottom: 8 },
+  title: { color: "#6A1B9A", fontSize: 28, fontWeight: "800", marginTop: 6 },
   subtitle: {
-    color: '#6A1B9A',
+    color: "#6A1B9A",
     fontSize: 14,
     marginTop: 6,
     marginBottom: 18,
-    textAlign: 'center',        // center the subtitle text
+    textAlign: "center",
   },
-  form: { width: '100%', marginTop: 8 }, // container width fills parent
+  form: { width: "100%", marginTop: 8 },
   label: {
-    color: '#6A1B9A',
+    color: "#6A1B9A",
     fontSize: 13,
     marginBottom: 6,
     marginLeft: 4,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 14,
     fontSize: 16,
-    color: '#333',
+    color: "#333",
     borderWidth: 1,
-    borderColor: '#ead9ff',
-    shadowColor: '#000',
+    borderColor: "#ead9ff",
+    shadowColor: "#000",
     shadowOpacity: 0.03,
-    elevation: 1,                 // Android shadow elevation
+    elevation: 1,
   },
   loginButton: {
-    backgroundColor: '#6A1B9A',
+    backgroundColor: "#6A1B9A",
     paddingVertical: 14,
     borderRadius: 30,
     marginTop: 28,
-    alignItems: 'center',
+    alignItems: "center",
   },
-  loginButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  signupRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 14 },
-  signupText: { color: '#6A1B9A', fontSize: 14 },
-  signupLink: { color: '#6A1B9A', fontSize: 14, fontWeight: '700' },
+  loginButtonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  signupRow: { flexDirection: "row", justifyContent: "center", marginTop: 14 },
+  signupText: { color: "#6A1B9A", fontSize: 14 },
+  signupLink: { color: "#6A1B9A", fontSize: 14, fontWeight: "700" },
 });
